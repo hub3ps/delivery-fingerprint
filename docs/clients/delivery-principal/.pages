@@ -1,0 +1,7 @@
+title: Delivery principal
+arrange:
+  - index.md
+  - Grafo de Dependências: grafo.md
+  - Matriz de Impacto (What-if): impacto.md
+  - Nós: nodes
+  - Tabelas: tabelas
