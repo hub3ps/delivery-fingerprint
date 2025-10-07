@@ -5,27 +5,54 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs:
-  build-deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
+
       - name: Install deps
         run: |
-          pip install mkdocs-material mkdocs-mermaid2-plugin pyyaml
-      - name: Generate all tenants
+          python -m pip install --upgrade pip
+          pip install mkdocs==1.6.0 mkdocs-material mkdocs-mermaid2-plugin pyyaml
+
+      - name: Generate docs (multi-tenant)
         run: |
           python3 scripts/generate_all.py || true
-      - name: Build site
+
+      - name: Build MkDocs site
         run: |
           mkdocs build --strict
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
+          path: ./site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
