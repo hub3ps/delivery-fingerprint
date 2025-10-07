@@ -12,8 +12,6 @@ theme:
     - content.code.copy
     - content.code.annotate
     - content.action.view
-  icon:
-    repo: fontawesome/brands/github
 
 repo_url: https://github.com/hub3ps/delivery-fingerprint
 repo_name: hub3ps/delivery-fingerprint
@@ -21,7 +19,6 @@ repo_name: hub3ps/delivery-fingerprint
 plugins:
   - search
   - mermaid2
-  - awesome-pages
   - git-revision-date-localized:
       fallback_to_build_date: true
       enable_creation_date: false
@@ -35,7 +32,6 @@ markdown_extensions:
   - def_list
   - attr_list
   - md_in_html
-  # PyMdown – melhora código, detalhes, tabs etc.
   - pymdownx.superfences
   - pymdownx.details
   - pymdownx.highlight
@@ -49,5 +45,16 @@ markdown_extensions:
 extra_css:
   - assets/impact.css
 
-# Usando awesome-pages: o nav é gerado a partir da estrutura de pastas em docs/
-# (não declare "nav:" aqui)
+nav:
+  - Overview: index.md
+  - Clientes:
+      - delivery-principal:
+          - Visão geral: clients/delivery-principal/index.md
+          - Grafo: clients/delivery-principal/grafo.md
+          - Nós: clients/delivery-principal/nodes/index.md
+          - Tabelas:
+              - Conexões: clients/delivery-principal/tabelas/edges.md
+              - Expressões: clients/delivery-principal/tabelas/expressions.md
+              - SQL: clients/delivery-principal/tabelas/sql.md
+              - Código: clients/delivery-principal/tabelas/code.md
+          - Impacto: clients/delivery-principal/impacto.md
