@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
-import yaml
-import re
 from pathlib import Path
-from shared_parser import parse_workflows, mermaid_from_edges, md_table, build_impact
+import re
+import yaml
+
+# importa helpers do parser compartilhado
+from shared_parser import (
+    parse_workflows,
+    mermaid_from_edges,
+    md_table,
+    build_impact,
+)
 
 ROOT_DIR    = Path(__file__).resolve().parent.parent
 TENANTS_DIR = ROOT_DIR / "tenants"
@@ -10,17 +17,20 @@ DOCS_DIR    = ROOT_DIR / "docs" / "clients"
 
 
 def slug(s: str) -> str:
-    s = re.sub(r"\s+", "-", str(s).strip())
+    s = re.sub(r"\s+", "-", str(s or "").strip())
     s = re.sub(r"[^A-Za-z0-9\-_]", "", s)
     return s.lower() or "node"
 
 
+def safe_get(d: dict, k: str, default=""):
+    v = d.get(k)
+    return v if v is not None else default
+
+
 def generate_for_tenant(tenant: str):
     """
-    Gera documentação para um tenant em:
-      docs/clients/<tenant>/
-    Espera os exports N8N em:
-      tenants/<tenant>/input/*.json
+    Gera documentação para um tenant em docs/clients/<tenant>/
+    Espera exports N8N em tenants/<tenant>/input/*.json
     """
     tdir = TENANTS_DIR / tenant
     input_dir = tdir / "input"
@@ -36,10 +46,10 @@ def generate_for_tenant(tenant: str):
         except Exception as e:
             print(f"[WARN] Falha ao ler {cfg_path}: {e}")
 
-    # Parse de workflows (do shared_parser)
+    # Parse workflows
     nodes, edges, exprs, sqls, codes = parse_workflows(input_dir)
 
-    # Pastas destino
+    # Folders destino
     base = DOCS_DIR / tenant
     base.mkdir(parents=True, exist_ok=True)
 
@@ -64,12 +74,12 @@ def generate_for_tenant(tenant: str):
     )
 
     # ---------- Grafo ----------
-    grafo = mermaid_from_edges(edges, rankdir="TB")
+    grafo = mermaid_from_edges(edges or [], rankdir="TB")
     (base / "grafo.md").write_text("# Grafo de Dependências\n\n```mermaid\n" + grafo + "\n```\n", encoding="utf-8")
 
-    # ---------- Tabelas cruas ----------
+    # ---------- Tabelas ----------
     def write_table(relpath: str, rows: list, headers: list, title: str):
-        (tabdir / relpath).write_text("# " + title + "\n\n" + md_table(rows, headers) + "\n", encoding="utf-8")
+        (tabdir / relpath).write_text("# " + title + "\n\n" + md_table(rows or [], headers) + "\n", encoding="utf-8")
 
     write_table("nodes.md",       nodes, ["workflow", "id", "name", "type", "disabled"], "Nós")
     write_table("edges.md",       edges, ["workflow", "from", "to", "path"],            "Conexões")
@@ -77,36 +87,47 @@ def generate_for_tenant(tenant: str):
     write_table("sql.md",         sqls,  ["workflow", "node", "param_path", "sql_excerpt", "tables_guess"], "SQL")
     write_table("code.md",        codes, ["workflow", "node", "param_key", "loc", "excerpt"], "Código")
 
-    # ---------- Índice e páginas por nó ----------
+    # ---------- Índice/páginas por nó ----------
     # agrupa dados por nó
     expr_by_node = {}
-    for r in exprs:
-        expr_by_node.setdefault(r["node"], []).append(r)
+    for r in (exprs or []):
+        expr_by_node.setdefault(safe_get(r, "node"), []).append(r)
 
     sql_by_node = {}
-    for r in sqls:
-        sql_by_node.setdefault(r["node"], []).append(r)
+    for r in (sqls or []):
+        sql_by_node.setdefault(safe_get(r, "node"), []).append(r)
 
     code_by_node = {}
-    for r in codes:
-        code_by_node.setdefault(r["node"], []).append(r)
+    for r in (codes or []):
+        code_by_node.setdefault(safe_get(r, "node"), []).append(r)
 
-    # filhos por arestas (A -> B)
+    # filhos diretos (A -> B)
     children = {}
-    for e in edges:
-        a, b = e["from"], e["to"]
+    for e in (edges or []):
+        a = safe_get(e, "from")
+        b = safe_get(e, "to")
         if a and b:
             children.setdefault(a, set()).add(b)
 
+    # nomes de nós (fallback para id/type se name vier vazio)
+    def node_display_name(n: dict) -> str:
+        name = (n.get("name") or "").strip()
+        if name:
+            return name
+        # fallback: "type#id"
+        nid = str(safe_get(n, "id"))
+        ntype = str(safe_get(n, "type"))
+        return f"{ntype}#{nid}"
+
     created = []
-    node_names = sorted({r["name"] for r in nodes})
+    node_names = sorted({node_display_name(r) for r in (nodes or [])})
     for n in node_names:
         s = slug(n)
         p = nodes_dir / f"{s}.md"
 
         sections = [f"# {n}\n"]
 
-        # Impacta diretamente (saídas)
+        # Impacta diretamente
         outs = sorted(children.get(n, []))
         if outs:
             sections.append("## Impacta diretamente\n")
@@ -120,21 +141,23 @@ def generate_for_tenant(tenant: str):
             sections.append("| Caminho | Expressão | Refs |")
             sections.append("|---|---|---|")
             for r in expr_by_node[n]:
-                sections.append(f"| `{r.get('param_path','')}` | `{r.get('expression','')}` | `{r.get('refs','')}` |")
+                sections.append(f"| `{safe_get(r,'param_path')}` | `{safe_get(r,'expression')}` | `{safe_get(r,'refs')}` |")
             sections.append("")
 
         # SQL
         if sql_by_node.get(n):
             sections.append("## SQL\n")
             for r in sql_by_node[n]:
-                sections.append(f"**{r.get('param_path','')}**\n\n```sql\n{r.get('sql_excerpt','')}\n```\n")
+                sections.append(f"**{safe_get(r,'param_path')}**\n\n```sql\n{safe_get(r,'sql_excerpt')}\n```\n")
             sections.append("")
 
         # Código
         if code_by_node.get(n):
             sections.append("## Código\n")
             for r in code_by_node[n]:
-                sections.append(f"**{r.get('param_key','')}** ({r.get('loc',0)} linhas)\n\n```js\n{r.get('excerpt','')}\n```\n")
+                sections.append(
+                    f"**{safe_get(r,'param_key')}** ({safe_get(r,'loc',0)} linhas)\n\n```js\n{safe_get(r,'excerpt')}\n```\n"
+                )
             sections.append("")
 
         p.write_text("\n".join(sections), encoding="utf-8")
@@ -146,12 +169,12 @@ def generate_for_tenant(tenant: str):
         lines.append(f"- [{n}]({s}.md)")
     (nodes_dir / "index.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
-    # (Opcional) .pages para quando usar awesome-pages
+    # .pages (inofensivo sem awesome-pages; útil se ligar depois)
     (nodes_dir / ".pages").write_text(
         "title: Nós\narrange:\n  - Atendente\n  - index.md\n  - '*'\n",
         encoding="utf-8",
     )
-    # Submenu de "Atendente" (stubs apontando para as páginas reais dos filhos)
+    # Submenu do "Atendente" (stubs para filhos)
     atendente = "Atendente"
     if atendente in children:
         att_dir = nodes_dir / atendente
@@ -161,14 +184,15 @@ def generate_for_tenant(tenant: str):
             try:
                 slug_child = next(s for (nn, s) in created if nn == child)
             except StopIteration:
+                # filho não tem página (pode não ser um node válido parseado)
                 continue
             (att_dir / f"{slug(child)}.md").write_text(
                 f"# {child}\n\nVeja a página principal deste nó: [abrir](/clients/{tenant}/nodes/{slug_child}.md)\n",
                 encoding="utf-8"
             )
 
-    # ---------- Impacto (direto + árvore colapsável) ----------
-    (base / "impacto.md").write_text(build_impact(exprs, edges), encoding="utf-8")
+    # Impacto (lista + árvore colapsável)
+    (base / "impacto.md").write_text(build_impact(exprs or [], edges or []), encoding="utf-8")
 
 
 if __name__ == "__main__":
