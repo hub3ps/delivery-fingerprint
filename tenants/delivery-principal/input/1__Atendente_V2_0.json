@@ -1,0 +1,2065 @@
+{
+  "name": "1. Atendente.V2.0",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8ca54eae-15d1-49d3-af33-7a6e5d17b833",
+              "leftValue": "={{ $('Info').item.json.fromMe }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "4ca9226f-0401-49a7-93a1-8aeaf4b0bb79",
+              "leftValue": "={{ $('Info').item.json.mensagem_de_grupo }}",
+              "rightValue": "g.us",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "d2a19b5a-8614-4dc2-9dbf-c74dc252ac1b",
+              "leftValue": "={{ ['text','audio'].includes($('Info').item.json.message_type) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "cc6858d5-4a5a-442e-97fb-01cffa9232f0",
+              "leftValue": "={{ ( $('Info').item.json.telefone || '' ).length >= 10 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1680,
+        740
+      ],
+      "id": "8a72a161-0618-4503-b20f-d0469beed592",
+      "name": "Mensagem chegando?"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hub3psteste",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        740
+      ],
+      "id": "685cbd5e-4b57-4c14-a645-571552eb1b09",
+      "name": "Mensagem recebida",
+      "webhookId": "798f3346-0469-48da-9047-f75921a33cb1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ultima_mensagem_da_fila = $input.last()\nconst mensagem_do_workflow = $('Info').first()\n\nif (ultima_mensagem_da_fila.json.id_mensagem !== mensagem_do_workflow.json.id_mensagem) {\n  // Mensagem encavalada, para o workflow\n  return [];\n}\n\n// Pass-through da fila de mensagens\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        740
+      ],
+      "id": "685b4efd-6fc5-42fb-bfe8-2524da1d3b82",
+      "name": "Mensagem encavalada?"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "n8n_fila_mensagens",
+          "mode": "list"
+        },
+        "returnAll": true,
+        "where": {
+          "values": [
+            {
+              "column": "telefone",
+              "value": "={{ $json.telefone }}"
+            },
+            {
+              "column": "status",
+              "value": "={{ $json.status }}"
+            }
+          ]
+        },
+        "sort": {
+          "values": [
+            {
+              "column": "timestamp"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2680,
+        740
+      ],
+      "id": "1e30c84f-596b-4610-8995-78d927b4b716",
+      "name": "Buscar mensagens",
+      "credentials": {
+        "postgres": {
+          "id": "1cdCAPhSbgI7pwdT",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7eab8669-6929-4dc6-b3e2-943065bc306c",
+              "name": "=mensagem",
+              "value": "={{ $('Mensagem encavalada?').all().map(info => info.json.mensagem).join('\\\\n') }}",
+              "type": "string"
+            },
+            {
+              "id": "7809a1a7-0116-491c-bdcb-dd922116115f",
+              "name": "telefone",
+              "value": "={{ $('Info').item.json.telefone }}",
+              "type": "string"
+            },
+            {
+              "id": "e6dbcfb1-b7b2-4bb0-9777-dc5d699d9e32",
+              "name": "horario",
+              "value": "={{ \n  new Date($('Info').first().json.timestamp * 1000)\n  .toLocaleString('pt-BR', { \n    timeZone: 'America/Sao_Paulo', \n    weekday: 'long', \n    day: '2-digit',\n    month: '2-digit',\n    year: 'numeric',\n    hour: '2-digit', \n    minute: '2-digit' \n  }) \n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3740,
+        740
+      ],
+      "id": "1f14fd1e-6afd-440f-9200-1cb2cb9ab754",
+      "name": "Concatenar mensagens",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "operation": "deleteTable",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "n8n_fila_mensagens",
+          "mode": "list",
+          "cachedResultName": "n8n_fila_mensagens"
+        },
+        "deleteCommand": "delete",
+        "where": {
+          "values": [
+            {
+              "column": "telefone",
+              "value": "={{$json.telefone}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3100,
+        740
+      ],
+      "id": "9c2039ea-b4e6-4f2e-9a7b-d7bc2de2fff2",
+      "name": "Limpar fila de mensagens",
+      "credentials": {
+        "postgres": {
+          "id": "1cdCAPhSbgI7pwdT",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# Processando mensagens encavaladas\n\nEssa etapa trata a situação em que o usuário envia múltiplas mensagens seguidas. O ponto negativo é o aumento no tempo de resposta do agente. Lógica dispensa uso de soluções mais complexas, como RabbitMQ.\n\nTempo de espera recomendado de ~16s. Quando estiver testando, recomendamos reduzir um pouco para ficar mais rápido de testar.\n",
+        "height": 360,
+        "width": 1080,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        560
+      ],
+      "id": "20ffecd1-911a-4348-8bfb-1da651d73a7a",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2460,
+        740
+      ],
+      "id": "067374e9-e81a-4416-b8ea-432de5fe9ce0",
+      "name": "Esperar",
+      "webhookId": "10fe7f60-89da-4bd5-a65d-912955b55d0b"
+    },
+    {
+      "parameters": {
+        "content": "# Gerando resposta",
+        "height": 620,
+        "width": 1920,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3940,
+        560
+      ],
+      "id": "93183e23-c2bf-4761-b814-47dde30399ac",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "# Enviando resposta",
+        "height": 620,
+        "width": 700,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        5880,
+        560
+      ],
+      "id": "3578eedb-c388-44f8-b996-b7c40d0a7781",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "# Tratando input\n\nImplementação de etiquetas do Evolution API não é muito fácil de utilizar, portanto funcionalidade de \"agente off\" fica difícil de implementar.\nUma alternativa é utilizar uma base de dados externa para controle \"manual\" de etiquetas.",
+        "height": 360,
+        "width": 1060
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        560
+      ],
+      "id": "ec8af50d-7a4d-480f-9f4c-ec025c76efbb",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Info').item.json.message_type === 'text' }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "1382cd26-d96e-4c55-99dd-2ca305ffe82e"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Texto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b9a7e16f-b6e4-45d7-846d-92dcb3117593",
+                    "leftValue": "={{ $('Info').item.json.message_type === 'audio' }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Áudio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "d28e4984-cfb5-4288-84a5-8e5e4ebdbd57",
+                    "leftValue": "={{ ['text','audio'].includes($('Info').item.json.message_type) }}",
+                    "rightValue": "Outro",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "false",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1940,
+        740
+      ],
+      "id": "3688aeaa-e61c-47a3-be73-bdbc36174e59",
+      "name": "Tipo de mensagem"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {
+          "language": "pt"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        2960,
+        1040
+      ],
+      "id": "b8abd4eb-f56f-4570-aa46-665c6101c850",
+      "name": "Transcrever áudio",
+      "credentials": {
+        "openAiApi": {
+          "id": "Soaahr9MTi7gnJjh",
+          "name": "Delivery Testes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# Processando áudio",
+        "height": 320,
+        "width": 1080,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        940
+      ],
+      "id": "402f6d26-0a9f-48e5-a3c3-690917a6434d",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "resource": "chat-api",
+        "operation": "send-presence",
+        "instanceName": "={{ $('Info').item.json.instancia }}",
+        "remoteJid": "={{ $('Info').item.json.telefone }}",
+        "presence": "=paused",
+        "delay": 0
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        6080,
+        960
+      ],
+      "id": "4052a095-7196-4d9d-9481-cd574821682f",
+      "name": "Resetar status",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "options": {
+          "encoding": "base64"
+        }
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        5720,
+        860
+      ],
+      "id": "956ae855-b2e9-47fd-8faa-7ec425639228",
+      "name": "Converter áudio para base64",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "content": "# Marcar como lida e \"digitando...\" e ativa o atendimento",
+        "height": 700,
+        "width": 660,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3260,
+        560
+      ],
+      "id": "7642be87-198b-434d-9218-6adc2ac27a73",
+      "name": "Sticky Note12"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.elevenlabs.io/v1/text-to-speech/33B4UnXyTNbgLmdEDh5P",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "output_format",
+              "value": "mp3_44100_32"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "name": "model_id",
+              "value": "eleven_flash_v2_5"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5560,
+        860
+      ],
+      "id": "fc3a9b77-d153-448b-b216-e5c7574ecccc",
+      "name": "Gerar áudio",
+      "retryOnFail": true,
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Atendente').item.json.output }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Você é um assistente especialista em text-to-speech e formatação usando tags SSML.\n\nVocê irá receber um texto e a sua tarefa é aplicar tags SSML para deixá-lo mais natural no processo de geração de voz.\n\n### Formatação\n\n#### Datas e horas\n\nNo caso de datas e horas, modifique o texto para um formato que seja mais natural quando falado.\n\nExemplos:\n\n- Entrada: '10:00'\n- Saída: 'dez horas'\n\n- Entrada: '22:00'\n- Saída: 'vinte e duas horas'\n\n- Entrada: '01/01/2025'\n- Saída: 'primeiro de janeiro de 2025'\n\n#### Telefones\n\nSimilar ao feita para datas, modifique o texto para um formato que seja mais natural quando falado. Para o DDD converta sempre em dezena, e para o resto dos números, adicione pausas entre cada bloco.\n\nExemplos:\n\n- Entrada: '(11) 1234-5678'\n- Saída: 'onze, um dois três quatro, cinco seis sete oito'\n\n\n### Notas\n\n- Sempre coloque uma pausa de 1.0s no começo.\n- Não use breaks no meio do texto, apenas no começo.\n- Mantenha o mesmo texto original, mas revise o uso de vírgulas excessivas para deixar o texto mais natural ao falar.\n- Remova emojis.\n- A sua saída será somente o texto convertido.\n- Use <speak> ao redor da saída.\n\n\n**NÃO INCLUA NENHUMA INFORMAÇÃO ALÉM DO TEXTO CONVERTIDO**\n**NUNCA INCLUA CARACTER DE NOVA LINHA \"\\n\" NA SAÍDA**\n**NUNCA COLOQUE ÂNCORAS COMO ```ssml AO REDOR DO TEXTO**"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.6,
+      "position": [
+        5240,
+        740
+      ],
+      "id": "13d7f835-9b44-4857-80a6-f09b219738ac",
+      "name": "Formatar SSML",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Atendente').item.json.output }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    },
+                    "id": "1382cd26-d96e-4c55-99dd-2ca305ffe82e"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Texto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b9a7e16f-b6e4-45d7-846d-92dcb3117593",
+                    "leftValue": "={{ $('Info').item.json.mensagem_de_audio }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        4960,
+        640
+      ],
+      "id": "bb584de7-c64b-4f30-85c1-0d65ead67330",
+      "name": "Tipo de mensagem1"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Info').item.json.telefone }}",
+        "tableName": "n8n_historico_mensagens",
+        "contextWindowLength": 50
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        4120,
+        920
+      ],
+      "id": "25436fec-8353-4071-868f-9e8ff32cec54",
+      "name": "Memory",
+      "credentials": {
+        "postgres": {
+          "id": "1cdCAPhSbgI7pwdT",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use essa ferramenta quando detectar uma situação que deve ser informada ao gestor responsável.\n\nUse o seguinte formato para a mensagem\n\n```\nUsuário <nome do usuário> (<telefone do usuário>) precisa de atenção imediata.\n\nÚltima mensagem:\n\n---\n\n<última mensagem do usuário>\n```",
+        "chatId": "={{ $('Info').item.json.telegram_chat_id }}",
+        "text": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Text', ``, 'string') }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTool",
+      "typeVersion": 1.2,
+      "position": [
+        4180,
+        1320
+      ],
+      "id": "320a4087-1431-45f6-a832-1d15f501000f",
+      "name": "Escalar humano",
+      "webhookId": "16a17136-7bfb-4586-a6d0-73ca13070c2f",
+      "credentials": {
+        "telegramApi": {
+          "id": "5MO5fpxGC2b9dX8v",
+          "name": "Telegram account - Deliveryhub3ps_bot"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "operation": "send-audio",
+        "instanceName": "={{ $('Info').item.json.instancia }}",
+        "remoteJid": "={{ $('Info').item.json.telefone }}",
+        "media": "={{ $('Converter áudio para base64').item.json.data }}",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        6340,
+        960
+      ],
+      "id": "fb43d770-946a-434d-957c-41490532cdec",
+      "name": "Responder mensagem áudio",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "base64",
+        "binaryPropertyName": "=data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        2660,
+        980
+      ],
+      "id": "02a2ff2b-79d2-455a-910c-c407bff03dad",
+      "name": "Converter base64 para áudio."
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "n8n_fila_mensagens",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "telefone": "={{ $('Info').item.json.telefone }}",
+            "mensagem": "={{ $('Info').item.json.mensagem }}",
+            "timestamp": "={{ $('Info').item.json.timestamp.toDateTime('s') }}",
+            "id_mensagem": "={{ $('Info').item.json.id_mensagem }}",
+            "client_id": "={{ \"06a81600-26fc-472b-880e-e6293943354e\" }}",
+            "trace_id": "={{ $json.trace_id }}",
+            "message_id": "={{ $json.id_mensagem }}",
+            "remote_jid": "={{ $json.remote_jid }}",
+            "message_type": "={{ $json.message_type }}",
+            "status": "={{ \"pending\" }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "id_mensagem",
+              "displayName": "id_mensagem",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "telefone",
+              "displayName": "telefone",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "mensagem",
+              "displayName": "mensagem",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_id",
+              "displayName": "client_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "trace_id",
+              "displayName": "trace_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "remote_jid",
+              "displayName": "remote_jid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "message_type",
+              "displayName": "message_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "locked_at",
+              "displayName": "locked_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "locked_by",
+              "displayName": "locked_by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "processed_at",
+              "displayName": "processed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "error",
+              "displayName": "error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2240,
+        740
+      ],
+      "id": "ba9f3c35-3220-45a2-97f7-fc9b4dcebf84",
+      "name": "Enfileirar mensagem.",
+      "credentials": {
+        "postgres": {
+          "id": "1cdCAPhSbgI7pwdT",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-preview-04-17",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        5400,
+        880
+      ],
+      "id": "fe96a8b0-bf88-45ec-bc07-d59ca358a5fb",
+      "name": "Google Gemini Chat Model.",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c8fd010d-6096-4a50-b3e2-e9fe26661840",
+              "name": "id_mensagem",
+              "value": "={{ $json.body.data.key.id }}",
+              "type": "string"
+            },
+            {
+              "id": "8bf522a6-75fb-434a-854c-b736539309e1",
+              "name": "telefone",
+              "value": "={{\n  (p => p ? (p.startsWith('55') ? p : '55' + p) : null)(\n    (\n      $json.body?.data?.key?.senderPn ??\n      $json.body?.data?.key?.remoteJid ??\n      $json.body?.data?.key?.senderLid ?? ''\n    ).split('@')[0].replace(/\\D/g,'')\n  )\n}}",
+              "type": "string"
+            },
+            {
+              "id": "731eef50-51cd-4328-8eda-177d937d519b",
+              "name": "instancia",
+              "value": "={{ $json.body.instance }}",
+              "type": "string"
+            },
+            {
+              "id": "0d622a33-f313-4758-a764-fa6cbf2b0587",
+              "name": "mensagem",
+              "value": "={{ $json.body.data.message.conversation || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "8f4b9d84-56e0-4f45-9f17-68c53f365f43",
+              "name": "mensagem_de_audio",
+              "value": "={{ $json.body.data.message.audioMessage?.ptt || false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "2b679a3f-788f-4cd2-88d5-4f03af68f224",
+              "name": "timestamp",
+              "value": "={{ $json.body.data.messageTimestamp }}",
+              "type": "number"
+            },
+            {
+              "id": "a445d43a-6cd5-4388-982b-9fc58433b342",
+              "name": "fromMe",
+              "value": "={{ $json.body.data.key.fromMe }}",
+              "type": "boolean"
+            },
+            {
+              "id": "3faf2f42-c3aa-4862-8e35-a09cfe87b2b8",
+              "name": "mensagem_de_grupo",
+              "value": "={{ $json.body.data.key.remoteJid.split('@').last() === 'g.us' }}",
+              "type": "boolean"
+            },
+            {
+              "id": "60cd2050-f950-4409-bd3c-79f7c29d20f0",
+              "name": "url_evolution",
+              "value": "={{ $json.body.server_url }}",
+              "type": "string"
+            },
+            {
+              "id": "9d73a108-1624-4d16-b3ba-caac1c921d1d",
+              "name": "telegram_chat_id",
+              "value": "<cole seu telegram chat id>",
+              "type": "string"
+            },
+            {
+              "id": "24bb14e7-6e8e-4e1f-91c6-f95328a98bbe",
+              "name": "timestamp_iso",
+              "value": "={{ new Date(($json.body.data.messageTimestamp||0)*1000).toISOString() }}",
+              "type": "string"
+            },
+            {
+              "id": "5a9e3588-a146-4c80-98b3-1fdf37be994f",
+              "name": "remote_jid",
+              "value": "={{$json.body.data.key.remoteJid}}",
+              "type": "string"
+            },
+            {
+              "id": "ecf4a2cd-18d8-442f-84ff-28f2ed2ca25c",
+              "name": "message_type",
+              "value": "={{ $json.body.data.message?.audioMessage ? 'audio' : ($json.body.data.message?.conversation ? 'text' : 'other') }}",
+              "type": "string"
+            },
+            {
+              "id": "959dc138-750f-45e9-90ad-6c4069f563b9",
+              "name": "is_audio",
+              "value": "={{$json.body.data.message?.audioMessage?.ptt || false}}",
+              "type": "boolean"
+            },
+            {
+              "id": "6c94ace1-e207-45a3-a104-6b83e867a07c",
+              "name": "media_mime",
+              "value": "={{$json.body.data.message?.audioMessage?.mimetype || ''}}",
+              "type": "string"
+            },
+            {
+              "id": "bf1d2fa6-c3ea-4f39-aeec-18cb88306c67",
+              "name": "media_size",
+              "value": "={{$json.body.data.message?.audioMessage?.fileLength || 0}}",
+              "type": "number"
+            },
+            {
+              "id": "5db21386-29b0-4f4c-ac09-095986aec334",
+              "name": "trace_id",
+              "value": "={{ ($json.body.data.key.id||'') + '-' + ($json.body.data.messageTimestamp||0) }}",
+              "type": "string"
+            },
+            {
+              "id": "18353c4a-a968-4fc9-8068-cace1e1fe858",
+              "name": "source",
+              "value": "evolution",
+              "type": "string"
+            },
+            {
+              "id": "96851dd9-5f1e-46cc-9248-5fe9d3a9383d",
+              "name": "client_code",
+              "value": "''",
+              "type": "string"
+            },
+            {
+              "id": "eb783ae8-e70e-4ec1-90a4-7b093ce78387",
+              "name": "client_id",
+              "value": "''",
+              "type": "string"
+            },
+            {
+              "id": "1c84c75d-0164-4734-ac3c-8e39dbd9bb27",
+              "name": "url_audio",
+              "value": "={{ $json.body.data.message.audioMessage.url }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        740
+      ],
+      "id": "3b37babf-24fc-4300-9933-38e988eb1a78",
+      "name": "Info"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={\n  \"mensagem\": \"{{ $json.mensagem }}\",\n  \"telefone\": \"{{ $json.telefone }}\"\n  \"horario\": \"{{ $json.horario }}\"\n}",
+        "options": {
+          "systemMessage": "=<prompt>\n  <contexto>\n    - O assistente atua no WhatsApp atendendo clientes do delivery Marcio Lanches &amp; Pizzas. \n    - A missão é ajudar o cliente a escolher, montar e finalizar pedidos do cardápio atualizado, incluindo lanches, sanduíches, torradas, porções, adicionais e bebidas. \n    - O atendimento ocorre em tempo real e deve ser ágil, claro e objetivo. \n  </contexto>\n\n  <papel>\n    O assistente é um atendente simpático e prestativo do Marcio Lanches (não é dono, não tem nome próprio). \n    Ele conhece todos os detalhes do cardápio e transmite confiança e proximidade.\n  </papel>\n\n  <fluxo_principal>\n    1. Início → Sempre chamar a tool `historico`. \n       - Se houver histórico: tratar cliente pelo nome e perguntar se quer repetir o último pedido.  \n       - Se não houver: tratar como novo e seguir o atendimento normalmente sem pedir nome agora.\n       - Verificação de pedidos do dia →\n          - Se o `historico` indicar que já existe pedido do mesmo telefone **no dia de hoje** (calcular por data local Itajaí):\n          - Responder: \"Você já tem um pedido hoje em andamento/finalizado. Não aceitamos dois pedidos no mesmo dia pelo mesmo número. Posso verificar o status pra você?\"\n          - Oferecer consulta de status (ver item em &lt;regras&gt;).\n       - Análise das mensagens:\n          - Sempre analisar as mensagens recebidas ANTES de perguntar sobre cardápio.  \n          - Se o cliente já enviou itens específicos (ex.: nome de lanche, bebida, porção ou indicou entrega/retirada), não pergunte sobre o cardápio nem reinicie a conversa.  \n          - Nesse caso, vá direto para o item 3 e prossiga com a coleta do pedido.\n\n    2. Cardápio → Validar sempre cada item com a tool `cardapio`, mesmo se o cliente não pedir explicitamente.  \n       - Apresentar o cardápio em blocos curtos e limpos (5–7 itens por mensagem), usando bullets (•) e formato “Nome — R$ preço”, sem formatação extra.\n       - Ex.:  \n         • X Burguer — R$ 23,00  \n         • X Egg — R$ 31,00  \n\n    3. Pedido → Confirmar itens, capturar observação por item, oferecer adicionais e bebidas (se o carrinho não tiver bebida, perguntar se deseja incluir).  \n\n    4. Entrega ou Retirada → \n       - Se retirada: avançar direto para pagamento.  \n       - Se entrega:  \n         - **Obrigatório:** chamar `historico` **novamente neste momento, imediatamente antes de mencionar qualquer endereço**.\n         - Se o `historico` retornar endereço completo (rua, número, bairro, CEP, cidade):  \n            - Perguntar: \"Último endereço cadastrado: [ENDEREÇO]. Podemos entregar nele?\"  \n            - Somente após a confirmação → validar com a tool `maps`.  \n         - Se o `historico` **não** retornar endereço completo ou vier vazio:  \n            - Dizer: \"Não encontrei um endereço no seu cadastro.\"  \n            - Solicitar o endereço completo no formato Rua, Número, Bairro e CEP. \n            - Mesmo que o cliente envie apenas parte do endereço (ex.: só rua e número), utilizar a tool `maps` para completar e, em seguida, pedir confirmação ao cliente enviando apenas Rua, Número, Bairro, CEP e Cidade recebido pela tool `maps`.\n            - Validar obrigatoriamente no `maps` antes de prosseguir.  \n         - Nunca inventar ou supor endereço.  \n         - Após o endereço validado e confirmado → aplicar taxa de entrega e continuar. \n\n    5. Resumo → Enviar uma mensagem limpa com o pedido (um item por linha) e o total já com a taxa.  \n       - Ex.:  \n         • X-Burguer — 1 un — sem tomate — R$ 35,00  \n         • Coca-Cola Lata — 1 un — R$ 8,00  \n         Total: R$ 43,00  \n       - Confirmar: \"Fechamos assim?\"\n\n    6. Pagamento → Perguntar forma e coletar o necessário.  \n       - Dinheiro: perguntar se precisa de troco e para quanto.  \n       - Cartão: confirmar maquininha na entrega.  \n       - PIX: enviar a chave PIX (CNPJ 09103543000109 — Marcio Lanches) e solicitar o comprovante (imagem).  \n         - Somente chamar `enviar_pedido` depois de receber o comprovante.\n\n    7. Cadastro (somente no final se o cliente for novo) → depois de endereço/pagamento confirmados, solicitar nome para cadastro.  \n       - Não travar o atendimento por falta de nome no começo.\n\n    8. Confirmação → Executar tool `enviar_pedido` (apenas após autorização final do cliente e, se PIX, após o comprovante) e encerrar com frase positiva.\n  </fluxo_principal>\n\n  <regras>\n    - Não aceitar pedidos fora do horário informado no &lt;contexto&gt;.  \n    - Não inventar itens ou aceitar pedidos que não estejam no cardápio.  \n    - Lanche “careca” significa lanche sem salada → registrar em observação.  \n    - Sempre que cliente pedir cardápio, menu, opções, lanches, bebidas, adicionais ou porções → usar tool `cardapio`.  \n    - Apresentação visual:\n      - Cardápio: formatar de forma organizada e curta, com categorias separadas e no máximo 5 a 7 itens por mensagem; bullets (•), “Nome — R$ preço”.  \n      - Resumo do pedido (único, curto e legível em 1 tela):  \n        • Nome do item — quantidade — observação (se houver) — preço  \n        Total: R$ XX,XX\n    - Confirmar observações item a item. \n    - Se o cliente já tiver listado um ou mais itens no início da conversa, o agente deve interpretar isso como início do pedido e continuar a partir daí — **sem enviar mensagens introdutórias ou perguntas genéricas**.\n    - Nunca perguntar sobre “cardápio online ou WhatsApp” se o cliente já indicou os itens ou iniciou a montagem do pedido.\n    - O agente deve confirmar e validar esses itens imediatamente, consultando a `cardapio` se necessário, e seguir para complementos, entrega e pagamento.\n    - Incentivar cliente a pedir acompanhamentos/bebidas.  \n    - Endereço — Antialucinação:  \n      - **Proibido** citar, supor ou completar endereço sem validação.  \n      - Cliente com histórico: **somente** usar endereço retornado pela tool `historico` (se completo).  \n      - Cliente sem histórico/novo endereço: validar no `maps` e pedir confirmação.  \n      - Se qualquer campo estiver faltando → tratar como “sem endereço” e solicitar ao cliente.  \n      - Se maps.status ≠ \"OK\" ou cidade ≠ Itajaí/SC → explicar a restrição e pedir revisão.  \n      - Confirmar se é casa ou apartamento e capturar complemento antes de seguir.\n      - Após confirmação → aplicar taxa fixa de R$6,00.\n    - Cliente novo → desconto automático de R$5,00.  \n    - Sempre informar o total antes da forma de pagamento.  \n    - PIX: obrigatório receber o comprovante antes de enviar o pedido.  \n    - Cancelamento → usar tool `historico` → confirmar pedido → tool `cancelar_pedido` (telefone + order_id exato).\n    - Pedidos no mesmo dia:\n      - Verificar no `historico` se há pedido do mesmo telefone no dia.  \n      - Se houver → não abrir novo pedido e oferecer consulta de status.\n    - Consulta de status:\n      - Se o cliente perguntar \"status\", \"andamento\", \"saiu?\", \"previsão\", etc.:\n        - Acionar `historico` e retornar o status do pedido mais recente do dia.\n  </regras>\n\n  <exemplos>\n    <exemplo>\n      Cliente: \"Quais opções de lanche vocês têm?\"\n      Atendente: \"Posso te mandar as opções em blocos. Olha alguns destaques:\n• X Burguer — R$ 23,00\n• X Egg — R$ 31,00\n• X Moda da Casa — R$ 40,00\nQuer ver mais opções ou segue algum desses?\"\n    </exemplo>\n    <exemplo>\n      Cliente: \"Quero um lanche careca.\"\n      Atendente: \"Perfeito. Vou registrar o seu lanche sem salada. Deseja incluir algum adicional, como bacon ou queijo extra?\"\n    </exemplo>\n    <exemplo>\n      Cliente: \"Quero uma porção.\"\n      Atendente: \"Temos batata frita — R$ 38,00; batata com calabresa — R$ 48,00; frango — R$ 65,00. Quer que eu inclua alguma?\"\n    </exemplo>\n  </exemplos>\n\n  <tom>\n    - Amigável, claro e objetivo.  \n    - Mensagens curtas, diretas e segmentadas.  \n    - Não utilizar emojis.\n  </tom>\n\n  <resultado>\n    O cliente sai satisfeito, com o pedido confirmado e registrado corretamente, incluindo adicionais, bebidas, endereço completo (se entrega) e forma de pagamento. \n    Ele sente confiança e tem vontade de comprar novamente.\n  </resultado>\n\n  <tools>\n    - historico: \n      - Consulta pedidos anteriores no Supabase.\n      - **Entrega com histórico:** deve ser chamado novamente antes de citar qualquer endereço; usar apenas o último endereço **completo** retornado.\n      - Se vazio ou com campos ausentes → não citar endereço; solicitar ao cliente e validar via `maps`.  \n    - cardapio: Retorna cardápio atualizado diretamente do banco de dados.\n      - Link do cardápio online (para quando o cliente pedir explicitamente): https://marciolanches.saipos.com/home\n      - Para cada item retornado, capture internamente: item_id, nome, preço, pdv.\n      - Ao adicionar um item ao carrinho, **salve o par (item_id e pdv)** para uso na normalização antes do envio.\n    - enviar_pedido: Envia todos os dados do pedido para o sistema externo (Saipos). O formato JSON completo e as instruções de uso estão definidos no bloco &lt;instrucoes_enviar_pedido&gt;. Essa tool deve ser usada somente após a autorização final do cliente.\n    - maps: Valida endereço no Google Maps.  \n    - cancelar_pedido: Cancela último pedido no Saipos (telefone + order_id exato da tool historico).\n  </tools>\n\n  <instrucoes_enviar_pedido>\n    - Utilize a tool `enviar_pedido` somente após a autorização final.\n    - PIX: antes de enviar, solicitar e receber comprovante (imagem).\n    - Ajustar a descrição de todos os itens exatamente igual ao retorno da tool `cardapio`.\n    - O envio deve seguir **exatamente** o modelo abaixo, sem alterar nomes de campos.  \n    - Nunca use chaves em inglês (name, price, quantity, observation).  \n    - Campos obrigatórios: session_id, nome, telefone, tipo_entrega, rua, numero, bairro, cep, cidade, complemento, taxa_entrega, itens, pdv, desconto, pagamento, troco_para, total.  \n    - Estrutura dos itens:\n      - descricao (string, **copiada exatamente** do campo name da tool `cardapio`; zero variações)\n      - pdv (number)\n      - quantidade (number)  \n      - valor_unitario (number)  \n      - observacao (string)  \n      - adicionais (array de objetos com descricao, pdv, valor_unitario, quantidade)  \n\n    - Exemplo:\n{\n  \"session_id\": {{ $('Info').item.json.telefone }},\n  \"nome\": nome,\n  \"telefone\": {{ $('Info').item.json.telefone }},\n  \"tipo_entrega\": tipo_entrega,\n  \"rua\": rua,\n  \"numero\": numero,\n  \"bairro\": bairro,\n  \"cep\": cep,\n  \"cidade\": \"Itajaí\",\n  \"complemento\": complemento,\n  \"taxa_entrega\": taxa_entrega,\n  \"itens\": [\n    {\n      \"pdv\": \"\",\n      \"descricao\": \"X Egg\",\n      \"quantidade\": 1,\n      \"valor_unitario\": 30,\n      \"observacao\": \"sem tomate\",\n      \"adicionais\": [\n        { \"pdv\": \"\", \"descricao\": \"Queijo Extra\", \"valor_unitario\": 5, \"quantidade\": 1 }\n      ]\n    }\n  ],\n  \"desconto\": desconto,\n  \"pagamento\": pagamento,\n  \"troco_para\": troco_para,\n  \"total\": total\n}\n  </instrucoes_enviar_pedido>\n</prompt>"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        4240,
+        640
+      ],
+      "id": "52f1bee1-6480-4b39-aa5e-e90b8a39ca4b",
+      "name": "Atendente",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "toolDescription": "Call this tool to send a new order to the delivery system. The input must contain all order data in a valid JSON string.",
+        "method": "POST",
+        "url": "https://webhook.hub3ps.com/webhook/enviar-pedido",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "session_id",
+              "value": "={{ $fromAI(\"session_id\", \"ID da conversa\", \"string\") }}"
+            },
+            {
+              "name": "nome",
+              "value": "={{ $fromAI(\"nome\", \"nome do cliente\", \"string\") }}"
+            },
+            {
+              "name": "telefone",
+              "value": "={{ $fromAI(\"telefone\", \"telefone\", \"string\") }}"
+            },
+            {
+              "name": "rua",
+              "value": "={{ $fromAI(\"rua\", \"rua\", \"string\") }}"
+            },
+            {
+              "name": "itens",
+              "value": "={{ $fromAI(\"itens\", \"intens\", \"string\") }}"
+            },
+            {
+              "name": "complemento",
+              "value": "={{ $fromAI(\"complemento\", \"complemento\", \"string\") }}"
+            },
+            {
+              "name": "pagamento",
+              "value": "={{ $fromAI(\"pagamento\", \"pagamento\", \"string\") }}"
+            },
+            {
+              "name": "total",
+              "value": "={{ $fromAI(\"total\", \"total\", \"string\") }}"
+            },
+            {
+              "name": "cep",
+              "value": "={{ $fromAI(\"cep\", \"cep\", \"string\") }}"
+            },
+            {
+              "name": "numero",
+              "value": "={{ $fromAI(\"numero\", \"numero\", \"string\") }}"
+            },
+            {
+              "name": "bairro",
+              "value": "={{ $fromAI(\"bairro\", \"bairro\", \"string\") }}"
+            },
+            {
+              "name": "tipo_entrega",
+              "value": "={{ $fromAI(\"tipo_entrega\", \"tipo_entrega\", \"string\") }}"
+            },
+            {
+              "name": "cidade",
+              "value": "={{ $fromAI(\"cidade\", \"cidade\", \"string\") }}"
+            },
+            {
+              "name": "taxa_entrega",
+              "value": "={{ $fromAI(\"taxa_entrega\", \"taxa_entrega\", \"string\") }}"
+            },
+            {
+              "name": "troco_para",
+              "value": "={{ $fromAI(\"troco_para\", \"troco_para\", \"string\") }}"
+            },
+            {
+              "name": "desconto",
+              "value": "={{ $fromAI(\"desconto\", \"desconto\", \"string\") }}"
+            },
+            {
+              "name": "adicionais",
+              "value": "={{ $fromAI(\"adicionais\", \"adicionais\", \"string\") }}"
+            },
+            {
+              "name": "pdv",
+              "value": "={{ $fromAI(\"pdv\", \"pdv\", \"string\") }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        4500,
+        920
+      ],
+      "id": "6733466e-009b-45f6-b360-768e7d7dd7c9",
+      "name": "enviar_pedido",
+      "notes": "{\n  \"session_id\": {{ $('Info').item.json.telefone }},\n  \"nome\": nome,\n  \"telefone\": {{ $('Info').item.json.telefone }},\n  \"tipo_entrega\": tipo_entrega,\n  \"rua\": rua,\n  \"numero\": numero,\n  \"bairro\": bairro,\n  \"cep\": cep,\n  \"cidade\": \"Itajaí\",\n  \"complemento\": complemento,\n  \"taxa_entrega\": taxa_entrega,\n  \"itens\": [\n    {\n      \"descricao\": \"X Egg\",\n      \"quantidade\": 1,\n      \"valor_unitario\": 30,\n      \"observacao\": \"sem tomate, pouco sal\",\n      \"adicionais\": [\n        { \"descricao\": \"Queijo Extra\", \"valor_unitario\": 5, \"quantidade\": 1 },\n        { \"descricao\": \"Bacon\", \"valor_unitario\": 4, \"quantidade\": 1 }\n      ]\n    },\n    {\n      \"descricao\": \"X Burguer\",\n      \"quantidade\": 1,\n      \"valor_unitario\": 35,\n      \"observacao\": \"ponto ao ponto\",\n      \"adicionais\": []\n    }\n  ],\n  \"desconto\": desconto,\n  \"pagamento\": pagamento,\n  \"troco_para\": troco_para,\n  \"total\": total\n}"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Utilize está tool para validar e completar o endereço enviado pelo cliente.",
+        "url": "https://maps.googleapis.com/maps/api/geocode/json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "address",
+              "value": "={{ $fromAI('parameters0_Value', ``, 'string') }}"
+            },
+            {
+              "name": "key",
+              "value": "AIzaSyCHwMg8zVEJljx-xOqH8SqXJB0kP3gju4w"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        4620,
+        920
+      ],
+      "id": "03ad518e-5e22-48a0-a49b-bd70e754074d",
+      "name": "maps"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Retorna o catálogo inteiro (produtos + complementos) ativo, já normalizado\nSELECT\n  item_id,\n  item_type,          -- 'product' | 'modifier'\n  pdv,                -- código Saipos (interno)\n  parent_pdv,         -- pdv do produto-pai (para complementos)\n  product_id,\n  modifier_id,\n  display_name,       -- nome oficial p/ exibição\n  name,               -- alias curto (se quiser)\n  category,\n  size_label,\n  price,\n  active,\n  created_at\nFROM public.v_menu_catalog\nWHERE active = TRUE\nORDER BY category, display_name;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        4740,
+        920
+      ],
+      "id": "7d265e35-0809-447e-85bf-9ab556005c8f",
+      "name": "cardapio",
+      "credentials": {
+        "postgres": {
+          "id": "1cdCAPhSbgI7pwdT",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Utilize está tool quando o cliente pedir para cancelar o pedido. ",
+        "method": "POST",
+        "url": "https://webhook.hub3ps.com/webhook/cancelar_pedido",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "telefone",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters0_Value', ``, 'string') }}"
+            },
+            {
+              "name": "order_id",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters1_Value', ``, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        4360,
+        920
+      ],
+      "id": "712191bc-00fa-434d-b8f4-ee167bff6c97",
+      "name": "cancelar_pedido"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prioriza o texto do node \"Atendente\"\nconst fromAttNode =\n  ($node[\"Atendente\"]?.json?.output) ??\n  ($items(\"Atendente\")?.[0]?.json?.output);\n\n// Demais fontes (fallbacks)\nconst raw =\n  fromAttNode ??\n  $json?.message?.content ??\n  $json?.output ??\n  $json?.mensagem ??\n  $json?.text ??\n  $json?.texto ??\n  \"\";\n\n// Normaliza p/ string\nconst texto = String(raw || \"\").trim();\n\n// Se vazio, não quebra fluxo\nif (!texto) return [{ json: { ordem: 1, mensagem: \"\" } }];\n\n// Quebra por parágrafo (2+ quebras de linha)\nconst partes = texto\n  .split(/\\r?\\n\\r?\\n+/)\n  .map(s => s.trim())\n  .filter(Boolean);\n\n// Retorno\nreturn partes.map((msg, i) => ({ json: { ordem: i + 1, mensagem: msg } }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5900,
+        700
+      ],
+      "id": "416470f9-e557-4c8b-96c6-38a0e194cb85",
+      "name": "Code",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "batchSize": "=1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        6100,
+        700
+      ],
+      "id": "cc55fc36-84c3-4881-94ec-6a5b7ac9e77d",
+      "name": "Loop Over Items",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Info').item.json.url_evolution }}message/sendText/{{ $('Info').item.json.instancia }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "568E9C603169-47FB-AD18-B59C9D296594"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $('Info').item.json.telefone }}\",\n  \"text\": \"{{JSON.stringify($json.mensagem).slice(1,-1)}}\",\n  \"delay\": 4000\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        6360,
+        720
+      ],
+      "id": "baaeb89d-9844-4c88-ac74-d8bccfb7f704",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7eab8669-6929-4dc6-b3e2-943065bc306c",
+              "name": "mensagem",
+              "value": "={{ $('Transcrever áudio').item.json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "7809a1a7-0116-491c-bdcb-dd922116115f",
+              "name": "telefone",
+              "value": "={{ $('Info').item.json.telefone }}",
+              "type": "string"
+            },
+            {
+              "id": "e6dbcfb1-b7b2-4bb0-9777-dc5d699d9e32",
+              "name": "horario",
+              "value": "={{ new Date($('Info').first().json.timestamp * 1000)\n  .toLocaleString('pt-BR', {\n    timeZone: 'America/Sao_Paulo',\n    weekday: 'long',\n    hour: '2-digit',\n    minute: '2-digit'\n  })\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3740,
+        1020
+      ],
+      "id": "386819d4-cf55-4771-afc2-c9e4d54f5a01",
+      "name": "Concatenar mensagens1",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url_evolution }}/chat/getBase64FromMediaMessage/{{ $json.instancia }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "568E9C603169-47FB-AD18-B59C9D296594"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": {\n    \"key\": {\n      \"id\": \"{{ $json.id_mensagem }}\"\n    }\n  },\n  \"convertToMp4\": true\n}",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2260,
+        1040
+      ],
+      "id": "41672fc5-409d-46ef-9509-4ff4161d08a7",
+      "name": "HTTP Request1",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url_evolution }}/chat/getBase64FromMediaMessage/{{ $json.instancia }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "568E9C603169-47FB-AD18-B59C9D296594"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": {\n    \"key\": {\n      \"id\": \"{{ $json.url_audio }}\"\n    }\n  },\n  \"convertToMp4\": true\n}",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2460,
+        1120
+      ],
+      "id": "e925faa0-2924-4b88-a05d-83a77a4bfb44",
+      "name": "HTTP Request2",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Retorna snapshot do cliente (dados, último pedido, itens e favoritos) a partir do telefone.",
+        "operation": "executeQuery",
+        "query": "WITH inp AS (\n  SELECT regexp_replace($1::text, '\\D', '', 'g') AS d\n),\ncand AS (\n  -- d (como veio), d sem 55 e d com 55\n  SELECT d                            AS k FROM inp\n  UNION ALL SELECT CASE WHEN left(d,2)='55' THEN substring(d from 3) ELSE d END FROM inp\n  UNION ALL SELECT CASE WHEN left(d,2)='55' THEN d ELSE '55'||d END FROM inp\n)\nSELECT *\nFROM public.view_client_snapshot\nWHERE regexp_replace(phone, '\\D', '', 'g') IN (SELECT k FROM cand)\nORDER BY last_order_at DESC NULLS LAST\nLIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Query_Parameters', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        4240,
+        920
+      ],
+      "id": "41d1aa3f-a692-46df-829a-166abbac3024",
+      "name": "historico",
+      "credentials": {
+        "postgres": {
+          "id": "1cdCAPhSbgI7pwdT",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "chat-api",
+        "operation": "read-messages",
+        "instanceName": "={{ $('Info').item.json.instancia }}",
+        "remoteJid": "={{ $('Info').item.json.telefone }}",
+        "messageId": "={{ $('Info').item.json.id_mensagem }}",
+        "fromMe": "={{ $('Info').item.json.fromMe }}"
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        3540,
+        740
+      ],
+      "id": "7b8cba49-28cc-4597-becc-2bd8d9bca0dc",
+      "name": "Marcar como lida texto",
+      "credentials": {
+        "evolutionApi": {
+          "id": "AgOK2EGif2BK6vQU",
+          "name": "Evolution account - Hub3Ps"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.active_sessions AS s\n  (session_id, last_message, last_message_type, status)\nVALUES\n  (\n    '{{ $(\"Info\").first().json.telefone || $json.session_id }}',   -- fone (sem +)\n    '{{ $(\"Mensagem encavalada?\").all().map(i => i.json.mensagem).join(\"\\\\n\") }}',  -- texto puro\n    'human',\n    'active'\n  )\nON CONFLICT (session_id) WHERE (status = 'active')\nDO UPDATE\n   SET last_message      = EXCLUDED.last_message,\n       last_message_type = 'human',\n       updated_at        = now(),\n       followup_sent_at  = NULL;  -- reseta quando o humano responde",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3340,
+        740
+      ],
+      "id": "ee36b3b9-f568-4dd0-9413-49f64889aa5e",
+      "name": "controle atendimentos",
+      "credentials": {
+        "postgres": {
+          "id": "1cdCAPhSbgI7pwdT",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.active_sessions AS s\n  (session_id, last_message, last_message_type, status)\nVALUES\n  (\n    '{{ $(\"Info\").first().json.telefone || $json.session_id }}',   -- fone (sem +)\n    '{{ $json.output || $json.text || $json.reply }}',  -- texto do agent\n    'ai',\n    'active'\n  )\nON CONFLICT (session_id) WHERE (status = 'active')\nDO UPDATE\n   SET last_message      = EXCLUDED.last_message,\n       last_message_type = 'ai',\n       updated_at        = now();",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4720,
+        640
+      ],
+      "id": "827649a3-892a-4735-8e4a-49fb83bbffe3",
+      "name": "atualiza atendimento",
+      "credentials": {
+        "postgres": {
+          "id": "1cdCAPhSbgI7pwdT",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "chat-api",
+        "operation": "read-messages",
+        "instanceName": "={{ $('Info').item.json.instancia }}",
+        "remoteJid": "={{ $('Mensagem recebida').item.json.body.data.key.remoteJid }}",
+        "messageId": "={{ $('Info').item.json.id_mensagem }}",
+        "fromMe": "={{ $('Info').item.json.fromMe }}"
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        3540,
+        1020
+      ],
+      "id": "584cfcf1-0a94-4dc3-bec2-e716fed066a9",
+      "name": "Marcar como lida audio",
+      "credentials": {
+        "evolutionApi": {
+          "id": "AgOK2EGif2BK6vQU",
+          "name": "Evolution account - Hub3Ps"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        4000,
+        920
+      ],
+      "id": "e0309c9d-c2f0-48bb-9b00-d203d87e3919",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "uaAmIOORPCp1xYQN",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.active_sessions AS s\n  (session_id, last_message, last_message_type, status)\nVALUES\n  (\n    '{{ $('Info').item.json.telefone || $json.session_id }}',   -- fone (sem +)\n    '{{ $json.text }}',                       -- texto puro\n    'human',\n    'active'\n  )\nON CONFLICT (session_id) WHERE (status = 'active')\nDO UPDATE\n   SET last_message      = EXCLUDED.last_message,\n       last_message_type = 'human',\n       updated_at        = now(),\n       followup_sent_at  = NULL;  -- reseta quando o humano responde",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3340,
+        1020
+      ],
+      "id": "fb2134a0-4d39-4e0a-8a97-05b4b6c9e081",
+      "name": "controle atendimentos1",
+      "credentials": {
+        "postgres": {
+          "id": "1cdCAPhSbgI7pwdT",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Mensagem recebida": [
+      {
+        "json": {
+          "headers": {
+            "host": "webhook.hub3ps.com",
+            "user-agent": "axios/1.10.0",
+            "content-length": "910",
+            "accept": "application/json, text/plain, */*",
+            "accept-encoding": "gzip, br",
+            "cdn-loop": "cloudflare; loops=1",
+            "cf-connecting-ip": "31.97.31.99",
+            "cf-ipcountry": "BR",
+            "cf-ray": "98874956b850f94d-GRU",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "content-type": "application/json",
+            "x-forwarded-for": "31.97.31.99, 172.69.39.151",
+            "x-forwarded-host": "webhook.hub3ps.com",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "2601521b10db",
+            "x-real-ip": "172.69.39.151"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "event": "messages.upsert",
+            "instance": "Hub3Ps",
+            "data": {
+              "key": {
+                "remoteJid": "554797218396@s.whatsapp.net",
+                "fromMe": false,
+                "id": "2ACAD8468ACDBDC93EA4",
+                "senderLid": "141515363999975@lid"
+              },
+              "pushName": "Guilherme Miguel",
+              "status": "DELIVERY_ACK",
+              "message": {
+                "conversation": "Guilherme",
+                "messageContextInfo": {
+                  "deviceListMetadata": {
+                    "senderKeyHash": "7CI4yY2kgK7kDg==",
+                    "senderTimestamp": "1757601857",
+                    "recipientKeyHash": "sCtH71u232nGKg==",
+                    "recipientTimestamp": "1758142632"
+                  },
+                  "deviceListMetadataVersion": 2,
+                  "messageSecret": "KcPq73Gt3Pw6BZRejO1xEP/8vN+AUrS3au1wLrOl0+w="
+                }
+              },
+              "messageType": "conversation",
+              "messageTimestamp": 1759440474,
+              "instanceId": "e78ba723-3dff-4f23-a1d3-3809522a8eb1",
+              "source": "unknown"
+            },
+            "destination": "https://webhook.hub3ps.com/webhook/hub3psteste",
+            "date_time": "2025-10-02T18:27:54.627Z",
+            "sender": "554799879339@s.whatsapp.net",
+            "server_url": "https://evo.hub3ps.com/",
+            "apikey": "568E9C603169-47FB-AD18-B59C9D296594"
+          },
+          "webhookUrl": "https://webhook.hub3ps.com/webhook/hub3psteste",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Mensagem chegando?": {
+      "main": [
+        [
+          {
+            "node": "Tipo de mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem recebida": {
+      "main": [
+        [
+          {
+            "node": "Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensagem encavalada?": {
+      "main": [
+        [
+          {
+            "node": "Limpar fila de mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar mensagens": {
+      "main": [
+        [
+          {
+            "node": "Mensagem encavalada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Concatenar mensagens": {
+      "main": [
+        [
+          {
+            "node": "Atendente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpar fila de mensagens": {
+      "main": [
+        [
+          {
+            "node": "controle atendimentos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esperar": {
+      "main": [
+        [
+          {
+            "node": "Buscar mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tipo de mensagem": {
+      "main": [
+        [
+          {
+            "node": "Enfileirar mensagem.",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Transcrever áudio": {
+      "main": [
+        [
+          {
+            "node": "controle atendimentos1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resetar status": {
+      "main": [
+        [
+          {
+            "node": "Responder mensagem áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Converter áudio para base64": {
+      "main": [
+        [
+          {
+            "node": "Resetar status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar áudio": {
+      "main": [
+        [
+          {
+            "node": "Converter áudio para base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar SSML": {
+      "main": [
+        [
+          {
+            "node": "Gerar áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tipo de mensagem1": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Formatar SSML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Atendente",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalar humano": {
+      "ai_tool": [
+        []
+      ]
+    },
+    "Converter base64 para áudio.": {
+      "main": [
+        [
+          {
+            "node": "Transcrever áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enfileirar mensagem.": {
+      "main": [
+        [
+          {
+            "node": "Esperar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model.": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Formatar SSML",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Info": {
+      "main": [
+        [
+          {
+            "node": "Mensagem chegando?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atendente": {
+      "main": [
+        [
+          {
+            "node": "atualiza atendimento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "enviar_pedido": {
+      "ai_tool": [
+        [
+          {
+            "node": "Atendente",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "maps": {
+      "ai_tool": [
+        [
+          {
+            "node": "Atendente",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cardapio": {
+      "ai_tool": [
+        [
+          {
+            "node": "Atendente",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cancelar_pedido": {
+      "ai_tool": [
+        [
+          {
+            "node": "Atendente",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Concatenar mensagens1": {
+      "main": [
+        [
+          {
+            "node": "Atendente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Converter base64 para áudio.",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Converter base64 para áudio.",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "historico": {
+      "ai_tool": [
+        [
+          {
+            "node": "Atendente",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar como lida texto": {
+      "main": [
+        [
+          {
+            "node": "Concatenar mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "controle atendimentos": {
+      "main": [
+        [
+          {
+            "node": "Marcar como lida texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "atualiza atendimento": {
+      "main": [
+        [
+          {
+            "node": "Tipo de mensagem1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar como lida audio": {
+      "main": [
+        [
+          {
+            "node": "Concatenar mensagens1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Atendente",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "controle atendimentos1": {
+      "main": [
+        [
+          {
+            "node": "Marcar como lida audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0d2b59dd-409a-45d1-bdb3-62df25b7a4a9",
+  "meta": {
+    "instanceId": "c995eb3d5aea63d581c202f759dfd9ba110a4403b853d8b9833748030d2160bd"
+  },
+  "id": "wqblNhXqjJBzcBTC",
+  "tags": []
+}

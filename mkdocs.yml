@@ -1,0 +1,8 @@
+site_name: Delivery Agent — Fingerprint
+theme: { name: material, language: pt }
+plugins: [ search, mermaid2 ]
+markdown_extensions: [ admonition, toc ]
+nav:
+  - Overview: index.md
+  - Clientes:
+    - delivery-principal: clients/delivery-principal/index.md
