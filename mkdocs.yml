@@ -19,6 +19,7 @@ repo_name: hub3ps/delivery-fingerprint
 plugins:
   - search
   - mermaid2
+  - awesome-pages
   - git-revision-date-localized:
       fallback_to_build_date: true
       enable_creation_date: false
@@ -44,17 +45,3 @@ markdown_extensions:
 
 extra_css:
   - assets/impact.css
-
-nav:
-  - Overview: index.md
-  - Clientes:
-      - delivery-principal:
-          - Visão geral: clients/delivery-principal/index.md
-          - Grafo: clients/delivery-principal/grafo.md
-          - Nós: clients/delivery-principal/nodes/index.md
-          - Tabelas:
-              - Conexões: clients/delivery-principal/tabelas/edges.md
-              - Expressões: clients/delivery-principal/tabelas/expressions.md
-              - SQL: clients/delivery-principal/tabelas/sql.md
-              - Código: clients/delivery-principal/tabelas/code.md
-          - Impacto: clients/delivery-principal/impacto.md
