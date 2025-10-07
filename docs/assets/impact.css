@@ -1,0 +1,62 @@
+/* container */
+.impact-tree {
+  margin: 8px 0 24px 0;
+}
+
+/* título acima da árvore */
+.impact-title {
+  font-weight: 600;
+  margin: 0 0 6px 0;
+  color: var(--md-default-fg-color);
+}
+
+/* bloco <details> com visual de "pill" azul */
+details.impact {
+  border: 1px solid rgba(63, 81, 181, 0.25);
+  border-radius: 12px;
+  padding: 8px 12px;
+  margin: 8px 0 8px 0;
+  background: rgba(63, 81, 181, 0.06);
+}
+
+/* recuo por nível */
+details.impact.level-1 { margin-left: 0;   }
+details.impact.level-2 { margin-left: 12px;}
+details.impact.level-3 { margin-left: 24px;}
+details.impact.level-4 { margin-left: 36px;}
+details.impact.level-5 { margin-left: 48px;}
+
+/* cabeçalho clicável */
+details.impact > summary {
+  cursor: pointer;
+  list-style: none;
+  outline: none;
+  font-weight: 600;
+  color: #1a237e;
+}
+
+/* seta */
+details.impact > summary::-webkit-details-marker { display: none; }
+details.impact > summary:before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 6px;
+  transform: translateY(-1px);
+  opacity: 0.7;
+}
+details.impact[open] > summary:before {
+  content: "▾";
+}
+
+/* folhas (sem filhos) */
+.impact-leaf {
+  margin: 6px 0 6px 24px;
+  padding: 4px 8px;
+  background: rgba(0,0,0,0.03);
+  border-radius: 8px;
+  display: inline-block;
+}
+.impact-leaf.cyc {
+  background: rgba(244, 67, 54, 0.08);
+  color: #b71c1c;
+}
