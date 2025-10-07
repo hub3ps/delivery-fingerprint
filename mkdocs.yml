@@ -1,4 +1,5 @@
 site_name: Delivery Agent — Fingerprint
+site_url: https://hub3ps.github.io/delivery-fingerprint/
 
 theme:
   name: material
@@ -9,11 +10,22 @@ theme:
     - navigation.tracking
     - toc.follow
     - content.code.copy
+    - content.code.annotate
+    - content.action.view
+  icon:
+    repo: fontawesome/brands/github
+
+repo_url: https://github.com/hub3ps/delivery-fingerprint
+repo_name: hub3ps/delivery-fingerprint
 
 plugins:
   - search
   - mermaid2
   - awesome-pages
+  - git-revision-date-localized:
+      fallback_to_build_date: true
+      enable_creation_date: false
+      locale: pt_BR
 
 markdown_extensions:
   - admonition
@@ -23,6 +35,19 @@ markdown_extensions:
   - def_list
   - attr_list
   - md_in_html
+  # PyMdown – melhora código, detalhes, tabs etc.
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_generator: !!python/name:pymdownx.emoji.to_svg
 
 extra_css:
   - assets/impact.css
+
+# Usando awesome-pages: o nav é gerado a partir da estrutura de pastas em docs/
+# (não declare "nav:" aqui)
