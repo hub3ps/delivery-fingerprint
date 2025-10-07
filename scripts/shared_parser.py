@@ -267,12 +267,186 @@ def _transitive_levels(adj, start, max_depth=3):
         levels.pop()
     return levels
 
-def build_impact(expr_rows, edges_rows, show_levels=3):
+def _direct_impact_maps(expr_rows, edges_rows):
+    """(igual ao que te passei antes) -> impact_map, adj"""
+    from collections import defaultdict
+    impact_map = defaultdict(list)
+    adj = defaultdict(set)
+
+    # EXPRESSÕES ($node["X"]) : alterar X impacta o 'node' que usa X
+    for er in expr_rows:
+        node = er.get("node","") or ""
+        wfk  = er.get("workflow","") or ""
+        refs = (er.get("refs","") or "").split(",")
+        for piece in refs:
+            piece = piece.strip()
+            if piece.startswith("node:"):
+                src = piece.split(":",1)[1]
+                if src and src != node:
+                    impact_map[src].append((wfk, node, er.get("param_path","")))
+                    adj[src].add(node)
+
+    # CONEXÕES (A -> B): alterar A impacta diretamente B
+    for e in edges_rows:
+        wfk = e.get("workflow","") or ""
+        a   = e.get("from","") or ""
+        b   = e.get("to","") or ""
+        p   = e.get("path","") or "connection"
+        if a and b:
+            impact_map[a].append((wfk, b, f"(edge:{p})"))
+            adj[a].add(b)
+    return impact_map, adj
+
+
+def _render_tree(adj, start, max_depth=4):
     """
-    Matriz de impacto combinando:
-      - Expressões ($node["..."])
-      - Conexões (A -> B)
-    E exibe uma cadeia transitiva (nível 1..N) expansível via <details>.
+    Gera HTML com <details> aninhados (efeito 'ClickUp'):
+    start -> filhos -> netos ... até max_depth. Evita ciclos.
+    """
+    from html import escape
+
+    def rec(node, depth, visited):
+        if depth > max_depth: 
+            return ""
+        if node in visited:
+            # marca ciclo de forma sutil
+            return f'<div class="impact-leaf cyc">↻ {escape(node)}</div>'
+        visited = visited | {node}
+        children = sorted(adj.get(node, []))
+        if not children:
+            return f'<div class="impact-leaf">{escape(node)}</div>'
+
+        # bloco colapsável
+        html = [f'<details class="impact level-{depth}"><summary>{escape(node)}</summary>']
+        for ch in children:
+            html.append(rec(ch, depth+1, visited))
+        html.append("</details>")
+        return "\n".join(html)
+
+    return rec(start, 1, set())
+
+def _direct_impact_maps(expr_rows, edges_rows):
+    """(igual ao que te passei antes) -> impact_map, adj"""
+    from collections import defaultdict
+    impact_map = defaultdict(list)
+    adj = defaultdict(set)
+
+    # EXPRESSÕES ($node["X"]) : alterar X impacta o 'node' que usa X
+    for er in expr_rows:
+        node = er.get("node","") or ""
+        wfk  = er.get("workflow","") or ""
+        refs = (er.get("refs","") or "").split(",")
+        for piece in refs:
+            piece = piece.strip()
+            if piece.startswith("node:"):
+                src = piece.split(":",1)[1]
+                if src and src != node:
+                    impact_map[src].append((wfk, node, er.get("param_path","")))
+                    adj[src].add(node)
+
+    # CONEXÕES (A -> B): alterar A impacta diretamente B
+    for e in edges_rows:
+        wfk = e.get("workflow","") or ""
+        a   = e.get("from","") or ""
+        b   = e.get("to","") or ""
+        p   = e.get("path","") or "connection"
+        if a and b:
+            impact_map[a].append((wfk, b, f"(edge:{p})"))
+            adj[a].add(b)
+    return impact_map, adj
+
+
+def _render_tree(adj, start, max_depth=4):
+    """
+    Gera HTML com <details> aninhados (efeito 'ClickUp'):
+    start -> filhos -> netos ... até max_depth. Evita ciclos.
+    """
+    from html import escape
+
+    def rec(node, depth, visited):
+        if depth > max_depth: 
+            return ""
+        if node in visited:
+            # marca ciclo de forma sutil
+            return f'<div class="impact-leaf cyc">↻ {escape(node)}</div>'
+        visited = visited | {node}
+        children = sorted(adj.get(node, []))
+        if not children:
+            return f'<div class="impact-leaf">{escape(node)}</div>'
+
+        # bloco colapsável
+        html = [f'<details class="impact level-{depth}"><summary>{escape(node)}</summary>']
+        for ch in children:
+            html.append(rec(ch, depth+1, visited))
+        html.append("</details>")
+        return "\n".join(html)
+
+    return rec(start, 1, set())
+
+def _direct_impact_maps(expr_rows, edges_rows):
+    """(igual ao que te passei antes) -> impact_map, adj"""
+    from collections import defaultdict
+    impact_map = defaultdict(list)
+    adj = defaultdict(set)
+
+    # EXPRESSÕES ($node["X"]) : alterar X impacta o 'node' que usa X
+    for er in expr_rows:
+        node = er.get("node","") or ""
+        wfk  = er.get("workflow","") or ""
+        refs = (er.get("refs","") or "").split(",")
+        for piece in refs:
+            piece = piece.strip()
+            if piece.startswith("node:"):
+                src = piece.split(":",1)[1]
+                if src and src != node:
+                    impact_map[src].append((wfk, node, er.get("param_path","")))
+                    adj[src].add(node)
+
+    # CONEXÕES (A -> B): alterar A impacta diretamente B
+    for e in edges_rows:
+        wfk = e.get("workflow","") or ""
+        a   = e.get("from","") or ""
+        b   = e.get("to","") or ""
+        p   = e.get("path","") or "connection"
+        if a and b:
+            impact_map[a].append((wfk, b, f"(edge:{p})"))
+            adj[a].add(b)
+    return impact_map, adj
+
+
+def _render_tree(adj, start, max_depth=4):
+    """
+    Gera HTML com <details> aninhados (efeito 'ClickUp'):
+    start -> filhos -> netos ... até max_depth. Evita ciclos.
+    """
+    from html import escape
+
+    def rec(node, depth, visited):
+        if depth > max_depth: 
+            return ""
+        if node in visited:
+            # marca ciclo de forma sutil
+            return f'<div class="impact-leaf cyc">↻ {escape(node)}</div>'
+        visited = visited | {node}
+        children = sorted(adj.get(node, []))
+        if not children:
+            return f'<div class="impact-leaf">{escape(node)}</div>'
+
+        # bloco colapsável
+        html = [f'<details class="impact level-{depth}"><summary>{escape(node)}</summary>']
+        for ch in children:
+            html.append(rec(ch, depth+1, visited))
+        html.append("</details>")
+        return "\n".join(html)
+
+    return rec(start, 1, set())
+
+
+def build_impact(expr_rows, edges_rows, show_levels=4):
+    """
+    Renderiza:
+      1) Tabela de impacto DIRETO (como já tinha)
+      2) ÁRVORE ANINHADA com <details> (efeito dominó clicável)
     """
     impact_map, adj = _direct_impact_maps(expr_rows, edges_rows)
 
@@ -282,27 +456,20 @@ def build_impact(expr_rows, edges_rows, show_levels=3):
         lines.append("_Nenhuma referência entre nós foi detectada nas expressões ou conexões._\n")
         return "\n".join(lines)
 
-    # Índice lateral (para MkDocs gerar TOC bonito já está ok),
-    # aqui só garantimos ordenação estável:
     for target in sorted(impact_map.keys()):
         lines.append(f"## Se você alterar **{target}**\n")
 
-        # Tabela de impacto direto
+        # 1) Impacto direto
         lines.append("| Workflow | Nó afetado | Onde |")
         lines.append("|---|---|---|")
         for w, node, where in sorted(impact_map[target], key=lambda x: (x[0], x[1], x[2])):
             lines.append(f"| {w} | {node} | `{where}` |")
         lines.append("")
 
-        # Cadeia transitiva (níveis)
-        levels = _transitive_levels(adj, target, max_depth=show_levels)
-        if levels:
-            lines.append("<details><summary><strong>Ver cadeia completa (efeito dominó)</strong></summary>\n")
-            for i, lvl in enumerate(levels, start=1):
-                if not lvl: 
-                    continue
-                items = ", ".join(lvl)
-                lines.append(f"- **Nível {i}** → {items}")
-            lines.append("\n</details>\n")
+        # 2) Árvore aninhada (efeito ClickUp)
+        lines.append('<div class="impact-tree">')
+        lines.append('<p class="impact-title">Cadeia completa (clique para expandir):</p>')
+        lines.append(_render_tree(adj, target, max_depth=show_levels))
+        lines.append("</div>\n")
 
     return "\n".join(lines)
