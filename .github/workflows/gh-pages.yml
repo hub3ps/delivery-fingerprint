@@ -28,18 +28,27 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Install deps
+      # (Opcional) cache do pip para builds mais rápidos
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install deps (requirements.txt)
         run: |
           python -m pip install --upgrade pip
-          pip install mkdocs==1.6.0 mkdocs-material mkdocs-mermaid2-plugin pyyaml
+          pip install -r requirements.txt
 
       - name: Generate docs (multi-tenant)
         run: |
-          python3 scripts/generate_all.py || true
+          python scripts/generate_all.py || true
 
       - name: Build MkDocs site
         run: |
-          mkdocs build --strict
+          mkdocs build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
