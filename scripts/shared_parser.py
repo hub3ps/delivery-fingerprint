@@ -207,47 +207,102 @@ def md_table(rows, headers):
 
 # ---------- impacto ----------
 
-def build_impact(expr_rows, edges_rows):
+def _direct_impact_maps(expr_rows, edges_rows):
     """
-    Matriz de impacto combinando:
-      1) Referências em expressões ($node["..."])
-      2) Conexões do fluxo (A -> B) : mexer em A impacta B
+    Retorna:
+      impact_map: dict[source_node] -> list[(workflow, affected_node, where)]
+      adj: dict[source_node] -> set(affected_node)  (para BFS)
     """
     from collections import defaultdict
-    impact = defaultdict(list)
+    impact_map = defaultdict(list)
+    adj = defaultdict(set)
 
-    # 1) Dependências por EXPRESSÕES
+    # 1) EXPRESSÕES ($node["X"]) -> alterar X impacta 'node' que usa X
     for er in expr_rows:
-        refs = er.get("refs", "") or ""
-        node = er.get("node", "") or ""
-        wfk  = er.get("workflow", "") or ""
-        for piece in refs.split(","):
+        node = er.get("node","") or ""
+        wfk  = er.get("workflow","") or ""
+        refs = (er.get("refs","") or "").split(",")
+        for piece in refs:
             piece = piece.strip()
             if piece.startswith("node:"):
-                target = piece.split(":", 1)[1]
-                if target and target != node:
-                    impact[target].append((wfk, node, er.get("param_path", "")))
+                src = piece.split(":",1)[1]
+                if src and src != node:
+                    impact_map[src].append((wfk, node, er.get("param_path","")))
+                    adj[src].add(node)
 
-    # 2) Dependências por CONEXÕES diretas (A -> B)
+    # 2) CONEXÕES (A -> B) -> alterar A impacta diretamente B
     for e in edges_rows:
-        wfk = e.get("workflow", "") or ""
-        a   = e.get("from", "") or ""
-        b   = e.get("to", "") or ""
-        p   = e.get("path", "") or "connection"
+        wfk = e.get("workflow","") or ""
+        a   = e.get("from","") or ""
+        b   = e.get("to","") or ""
+        p   = e.get("path","") or "connection"
         if a and b:
-            impact[a].append((wfk, b, f"(edge:{p})"))
+            impact_map[a].append((wfk, b, f"(edge:{p})"))
+            adj[a].add(b)
 
-    # Renderização
+    return impact_map, adj
+
+def _transitive_levels(adj, start, max_depth=3):
+    """
+    BFS por níveis: retorna [ [nivel1], [nivel2], ... ] até max_depth.
+    Não repete nós já vistos.
+    """
+    from collections import deque
+    seen = {start}
+    q = deque([(start, 0)])
+    levels = [[] for _ in range(max_depth)]
+
+    while q:
+        u, d = q.popleft()
+        if d == max_depth: 
+            continue
+        for v in sorted(adj.get(u, [])):
+            if v in seen: 
+                continue
+            seen.add(v)
+            levels[d].append(v)           # d=0 -> nível 1 a partir de start
+            q.append((v, d+1))
+    # remove níveis vazios no fim
+    while levels and not levels[-1]:
+        levels.pop()
+    return levels
+
+def build_impact(expr_rows, edges_rows, show_levels=3):
+    """
+    Matriz de impacto combinando:
+      - Expressões ($node["..."])
+      - Conexões (A -> B)
+    E exibe uma cadeia transitiva (nível 1..N) expansível via <details>.
+    """
+    impact_map, adj = _direct_impact_maps(expr_rows, edges_rows)
+
     lines = ["# Matriz de Impacto (What-if)\n"]
-    if not impact:
+
+    if not impact_map:
         lines.append("_Nenhuma referência entre nós foi detectada nas expressões ou conexões._\n")
         return "\n".join(lines)
 
-    for target in sorted(impact.keys()):
+    # Índice lateral (para MkDocs gerar TOC bonito já está ok),
+    # aqui só garantimos ordenação estável:
+    for target in sorted(impact_map.keys()):
         lines.append(f"## Se você alterar **{target}**\n")
+
+        # Tabela de impacto direto
         lines.append("| Workflow | Nó afetado | Onde |")
         lines.append("|---|---|---|")
-        for w, node, where in impact[target]:
+        for w, node, where in sorted(impact_map[target], key=lambda x: (x[0], x[1], x[2])):
             lines.append(f"| {w} | {node} | `{where}` |")
         lines.append("")
+
+        # Cadeia transitiva (níveis)
+        levels = _transitive_levels(adj, target, max_depth=show_levels)
+        if levels:
+            lines.append("<details><summary><strong>Ver cadeia completa (efeito dominó)</strong></summary>\n")
+            for i, lvl in enumerate(levels, start=1):
+                if not lvl: 
+                    continue
+                items = ", ".join(lvl)
+                lines.append(f"- **Nível {i}** → {items}")
+            lines.append("\n</details>\n")
+
     return "\n".join(lines)
