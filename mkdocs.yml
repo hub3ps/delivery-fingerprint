@@ -1,4 +1,5 @@
 site_name: Delivery Agent — Fingerprint
+
 theme:
   name: material
   language: pt
@@ -6,6 +7,7 @@ theme:
 plugins:
   - search
   - mermaid2
+  - awesome-pages
 
 markdown_extensions:
   - admonition
@@ -13,8 +15,3 @@ markdown_extensions:
 
 extra_css:
   - assets/impact.css
-
-nav:
-  - Overview: index.md
-  - Clientes:
-      - delivery-principal: clients/delivery-principal/index.md
