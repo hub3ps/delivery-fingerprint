@@ -1,26 +1,32 @@
 #!/usr/bin/env python3
 import yaml
+import re
 from pathlib import Path
 from shared_parser import parse_workflows, mermaid_from_edges, md_table, build_impact
 
-ROOT_DIR   = Path(__file__).resolve().parent.parent
+ROOT_DIR    = Path(__file__).resolve().parent.parent
 TENANTS_DIR = ROOT_DIR / "tenants"
 DOCS_DIR    = ROOT_DIR / "docs" / "clients"
 
+
+def slug(s: str) -> str:
+    s = re.sub(r"\s+", "-", str(s).strip())
+    s = re.sub(r"[^A-Za-z0-9\-_]", "", s)
+    return s.lower() or "node"
+
+
 def generate_for_tenant(tenant: str):
-    from shared_parser import parse_workflows, mermaid_from_edges, md_table, build_impact
-    import re
-
-    def slug(s: str):
-        s = re.sub(r"\s+", "-", s.strip())
-        s = re.sub(r"[^A-Za-z0-9\-_]", "", s)
-        return s.lower() or "node"
-
+    """
+    Gera documentação para um tenant em:
+      docs/clients/<tenant>/
+    Espera os exports N8N em:
+      tenants/<tenant>/input/*.json
+    """
     tdir = TENANTS_DIR / tenant
     input_dir = tdir / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
 
-    # Metadados opcionais
+    # Metadados opcionais do tenant
     config = {"name": tenant, "description": ""}
     cfg_path = tdir / "config.yml"
     if cfg_path.exists():
@@ -30,7 +36,7 @@ def generate_for_tenant(tenant: str):
         except Exception as e:
             print(f"[WARN] Falha ao ler {cfg_path}: {e}")
 
-    # Parse tudo
+    # Parse de workflows (do shared_parser)
     nodes, edges, exprs, sqls, codes = parse_workflows(input_dir)
 
     # Pastas destino
@@ -71,8 +77,8 @@ def generate_for_tenant(tenant: str):
     write_table("sql.md",         sqls,  ["workflow", "node", "param_path", "sql_excerpt", "tables_guess"], "SQL")
     write_table("code.md",        codes, ["workflow", "node", "param_key", "loc", "excerpt"], "Código")
 
-    # ---------- Índice de Nós ----------
-    # agrupamentos de dados por nó
+    # ---------- Índice e páginas por nó ----------
+    # agrupa dados por nó
     expr_by_node = {}
     for r in exprs:
         expr_by_node.setdefault(r["node"], []).append(r)
@@ -85,22 +91,22 @@ def generate_for_tenant(tenant: str):
     for r in codes:
         code_by_node.setdefault(r["node"], []).append(r)
 
-    # mapa de filhos por arestas (A -> B)
+    # filhos por arestas (A -> B)
     children = {}
     for e in edges:
         a, b = e["from"], e["to"]
-        children.setdefault(a, set()).add(b)
+        if a and b:
+            children.setdefault(a, set()).add(b)
 
-    # cria página por nó
     created = []
-    for n in sorted({r["name"] for r in nodes}):
+    node_names = sorted({r["name"] for r in nodes})
+    for n in node_names:
         s = slug(n)
         p = nodes_dir / f"{s}.md"
 
-        sections = []
-        sections.append(f"# {n}\n")
+        sections = [f"# {n}\n"]
 
-        # Onde este nó impacta diretamente (saídas)
+        # Impacta diretamente (saídas)
         outs = sorted(children.get(n, []))
         if outs:
             sections.append("## Impacta diretamente\n")
@@ -108,7 +114,7 @@ def generate_for_tenant(tenant: str):
                 sections.append(f"- {o}")
             sections.append("")
 
-        # Expressões neste nó
+        # Expressões
         if expr_by_node.get(n):
             sections.append("## Expressões\n")
             sections.append("| Caminho | Expressão | Refs |")
@@ -117,14 +123,14 @@ def generate_for_tenant(tenant: str):
                 sections.append(f"| `{r.get('param_path','')}` | `{r.get('expression','')}` | `{r.get('refs','')}` |")
             sections.append("")
 
-        # SQL neste nó
+        # SQL
         if sql_by_node.get(n):
             sections.append("## SQL\n")
             for r in sql_by_node[n]:
                 sections.append(f"**{r.get('param_path','')}**\n\n```sql\n{r.get('sql_excerpt','')}\n```\n")
             sections.append("")
 
-        # Código neste nó
+        # Código
         if code_by_node.get(n):
             sections.append("## Código\n")
             for r in code_by_node[n]:
@@ -134,25 +140,24 @@ def generate_for_tenant(tenant: str):
         p.write_text("\n".join(sections), encoding="utf-8")
         created.append((n, s))
 
-    # index dos nós (lista clicável)
+    # index dos nós
     lines = ["# Nós\n", "_Abra um nó para ver expressões, código e impacto direto._\n"]
     for n, s in created:
         lines.append(f"- [{n}]({s}.md)")
     (nodes_dir / "index.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
-    # ---------- Submenu para Atendente (filhos diretos) ----------
-    # cria uma pasta Atendente/ com stubs linkando para as páginas originais
+    # (Opcional) .pages para quando usar awesome-pages
+    (nodes_dir / ".pages").write_text(
+        "title: Nós\narrange:\n  - Atendente\n  - index.md\n  - '*'\n",
+        encoding="utf-8",
+    )
+    # Submenu de "Atendente" (stubs apontando para as páginas reais dos filhos)
     atendente = "Atendente"
     if atendente in children:
         att_dir = nodes_dir / atendente
         att_dir.mkdir(parents=True, exist_ok=True)
-
-        # .pages para o grupo Atendente
         (att_dir / ".pages").write_text("title: Atendente (Ferramentas)\n", encoding="utf-8")
-
-        # stubs que redirecionam/logicamente para a página do nó filho original
         for child in sorted(children[atendente]):
-            # encontra o slug do filho já criado
             try:
                 slug_child = next(s for (nn, s) in created if nn == child)
             except StopIteration:
@@ -162,31 +167,11 @@ def generate_for_tenant(tenant: str):
                 encoding="utf-8"
             )
 
-    # ---------- .pages para ordenar menu “Nós” e destacar Atendente ----------
-    (nodes_dir / ".pages").write_text(
-        "title: Nós\narrange:\n  - Atendente\n  - index.md\n  - '*'\n",
-        encoding="utf-8",
-    )
-
     # ---------- Impacto (direto + árvore colapsável) ----------
     (base / "impacto.md").write_text(build_impact(exprs, edges), encoding="utf-8")
 
-    # ---------- tabelas ----------
-    def write_table(relpath: str, rows: list, headers: list, title: str):
-        (tabdir / relpath).write_text("# " + title + "\n\n" + md_table(rows, headers) + "\n", encoding="utf-8")
-
-    write_table("nodes.md",       nodes, ["workflow", "id", "name", "type", "disabled"], "Nós")
-    write_table("edges.md",       edges, ["workflow", "from", "to", "path"],            "Conexões")
-    write_table("expressions.md", exprs, ["workflow", "node", "param_path", "expression", "refs"], "Expressões")
-    write_table("sql.md",         sqls,  ["workflow", "node", "param_path", "sql_excerpt", "tables_guess"], "SQL")
-    write_table("code.md",        codes, ["workflow", "node", "param_key", "loc", "excerpt"], "Código")
-
-    # ---------- impacto (expressões + conexões) ----------
-    (cdir / "impacto.md").write_text(build_impact(exprs, edges), encoding="utf-8")
-
 
 if __name__ == "__main__":
-    # Gera para todos os tenants que tenham a pasta input/
     tenants = [p.name for p in TENANTS_DIR.glob("*") if (p / "input").exists()]
     for t in sorted(tenants):
         generate_for_tenant(t)
